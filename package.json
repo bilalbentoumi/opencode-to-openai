@@ -7,6 +7,13 @@
   "bin": {
     "oc-openai": "dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bilalbentoumi/opencode-to-openai.git"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
