@@ -1,12 +1,17 @@
 import type { AssistantMessage, Part, TextPartInput } from '@opencode-ai/sdk';
-import type { OpenAIMessage, OpenAIUsage } from './types.js';
+import type {
+  ChunkParams,
+  CompletionParams,
+  ExtractedParts,
+  OpenAIMessage,
+  OpenAIUsage,
+  ParsedModel,
+  PromptPayload,
+} from './types.js';
 
 export type { ChatCompletionRequest } from './types.js';
 
-export function parseModel(model: string): {
-  providerID: string;
-  modelID: string;
-} {
+export function parseModel(model: string): ParsedModel {
   const idx = model.indexOf('/');
   if (idx === -1) return { providerID: 'opencode', modelID: model };
   return { providerID: model.slice(0, idx), modelID: model.slice(idx + 1) };
@@ -29,10 +34,7 @@ function contentToText(content: OpenAIMessage['content']): string {
   return '';
 }
 
-export function messagesToPrompt(messages: OpenAIMessage[]): {
-  system: string;
-  parts: TextPartInput[];
-} {
+export function messagesToPrompt(messages: OpenAIMessage[]): PromptPayload {
   const systemChunks: string[] = [];
   const parts: TextPartInput[] = [];
 
@@ -52,10 +54,7 @@ export function messagesToPrompt(messages: OpenAIMessage[]): {
   return { system: systemChunks.join('\n\n'), parts };
 }
 
-export function extractParts(parts: Part[] | undefined): {
-  content: string;
-  reasoning: string;
-} {
+export function extractParts(parts: Part[] | undefined): ExtractedParts {
   if (!Array.isArray(parts)) return { content: '', reasoning: '' };
   let content = '';
   let reasoning = '';
@@ -79,14 +78,7 @@ export function toUsage(info: AssistantMessage | undefined): OpenAIUsage {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
-export function buildCompletion(opts: {
-  id: string;
-  model: string;
-  content: string;
-  reasoning: string;
-  usage: OpenAIUsage;
-  finishReason: string;
-}) {
+export function buildCompletion(opts: CompletionParams) {
   return {
     id: opts.id,
     object: 'chat.completion',
@@ -107,12 +99,7 @@ export function buildCompletion(opts: {
   };
 }
 
-export function buildChunk(opts: {
-  id: string;
-  model: string;
-  delta: Record<string, unknown>;
-  finishReason: string | null;
-}) {
+export function buildChunk(opts: ChunkParams) {
   return {
     id: opts.id,
     object: 'chat.completion.chunk',

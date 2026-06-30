@@ -1,16 +1,11 @@
 import {
   createOpencodeClient,
   createOpencodeServer,
-  type OpencodeClient,
 } from '@opencode-ai/sdk';
 import { getForwardedAuth } from './auth-context.js';
-import type { Config } from './types.js';
+import type { Backend, Config } from './types.js';
 
-export interface Backend {
-  client: OpencodeClient;
-  url: string;
-  close: () => Promise<void>;
-}
+export type { Backend } from './types.js';
 
 const forwardingFetch = (request: Request): Promise<Response> => {
   const authorization = getForwardedAuth();

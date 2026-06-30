@@ -6,20 +6,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { defaults } from './constants.js';
+import type { Instance, StartOptions } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverEntry = path.join(__dirname, 'index.js');
 
 const stateDir =
   process.env.OC_OPENAI_STATE_DIR ?? path.join(os.homedir(), '.oc-openai');
-
-interface Instance {
-  pid: number;
-  port: number;
-  host: string;
-  startedAt: string;
-  logFile: string;
-}
 
 const stateFile = (port: number) =>
   path.join(stateDir, `instance-${port}.json`);
@@ -76,14 +69,6 @@ async function isHealthy(host: string, port: number): Promise<boolean> {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-interface StartOptions {
-  port?: number;
-  host?: string;
-  opencodeUrl?: string;
-  opencodePort?: number;
-  requestTimeoutMs?: number;
-  foreground?: boolean;
-}
 
 function childEnv(opts: StartOptions): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };

@@ -1,7 +1,6 @@
 import type {
   AssistantMessage,
   Part,
-  SessionPromptData,
 } from '@opencode-ai/sdk';
 import cors from 'cors';
 import express, {
@@ -12,7 +11,6 @@ import express, {
 } from 'express';
 
 import { runWithForwardedAuth } from './auth-context.js';
-import type { Backend } from './backend.js';
 import {
   buildChunk,
   buildCompletion,
@@ -21,7 +19,14 @@ import {
   parseModel,
   toUsage,
 } from './openai.js';
-import type { ChatCompletionRequest, Config } from './types.js';
+import type {
+  Backend,
+  ChatCompletionRequest,
+  Config,
+  NonStreamContext,
+  OpenAIModel,
+  StreamContext,
+} from './types.js';
 
 function withTimeout<T>(
   promise: Promise<T>,
@@ -86,8 +91,6 @@ class UpstreamError extends Error {
 const writeSse = (res: Response, payload: unknown) =>
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 
-type PromptArgs = Omit<SessionPromptData, 'url'>;
-
 export function createApp(config: Config, backend: Backend): Express {
   const { client } = backend;
   const app = express();
@@ -126,7 +129,7 @@ export function createApp(config: Config, backend: Backend): Express {
 
   const MODEL_CACHE_MS = 60_000;
   let modelCache: {
-    models: Array<{ id: string; owned_by: string; name: string }>;
+    models: OpenAIModel[];
     at: number;
   } | null = null;
 
@@ -145,7 +148,7 @@ export function createApp(config: Config, backend: Backend): Express {
       ? raw
       : Object.entries(raw).map(([id, p]) => ({ ...(p as object), id }));
 
-    const models: Array<{ id: string; owned_by: string; name: string }> = [];
+    const models: OpenAIModel[] = [];
     for (const provider of providers as Array<{
       id: string;
       models?: Record<string, { name?: string }>;
@@ -284,7 +287,7 @@ export function createApp(config: Config, backend: Backend): Express {
 
   async function handleNonStream(
     res: Response,
-    ctx: { id: string; model: string; promptParams: PromptArgs },
+    ctx: NonStreamContext,
   ) {
     const result = await withTimeout(
       client.session.prompt(ctx.promptParams),
@@ -324,12 +327,7 @@ export function createApp(config: Config, backend: Backend): Express {
 
   async function handleStream(
     res: Response,
-    ctx: {
-      id: string;
-      model: string;
-      sessionId: string;
-      promptParams: PromptArgs;
-    },
+    ctx: StreamContext,
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
