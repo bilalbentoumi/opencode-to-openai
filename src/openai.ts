@@ -1,58 +1,34 @@
 import type { AssistantMessage, Part, TextPartInput } from '@opencode-ai/sdk';
+import type { OpenAIMessage, OpenAIUsage } from './types.js';
 
-// --- OpenAI-compatible wire types (the subset we support) ---
+export type { ChatCompletionRequest } from './types.js';
 
-export interface OpenAIContentPart {
-  type: string;
-  text?: string;
-  [key: string]: unknown;
-}
-
-export interface OpenAIMessage {
-  role: 'system' | 'developer' | 'user' | 'assistant' | 'tool';
-  content: string | OpenAIContentPart[] | null;
-  name?: string;
-}
-
-export interface ChatCompletionRequest {
-  model?: string;
-  messages: OpenAIMessage[];
-  stream?: boolean;
-  [key: string]: unknown;
-}
-
-export interface OpenAIUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
-
-/** Split an OpenAI `provider/model` id into OpenCode's provider + model ids. */
-export function parseModel(model: string): { providerID: string; modelID: string } {
+export function parseModel(model: string): {
+  providerID: string;
+  modelID: string;
+} {
   const idx = model.indexOf('/');
   if (idx === -1) return { providerID: 'opencode', modelID: model };
   return { providerID: model.slice(0, idx), modelID: model.slice(idx + 1) };
 }
 
-/** Flatten OpenAI message content (string or content-part array) to plain text. */
 function contentToText(content: OpenAIMessage['content']): string {
   if (content == null) return '';
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
-      .map((part) => (typeof part === 'string' ? part : typeof part.text === 'string' ? part.text : ''))
+      .map((part) =>
+        typeof part === 'string'
+          ? part
+          : typeof part.text === 'string'
+            ? part.text
+            : '',
+      )
       .join('');
   }
   return '';
 }
 
-/**
- * Convert an OpenAI chat history into an OpenCode prompt.
- *
- * OpenAI is stateless — every request carries the full transcript — while each
- * OpenCode session is fresh, so we fold the history into labeled text parts and
- * hoist system/developer messages into the dedicated `system` field.
- */
 export function messagesToPrompt(messages: OpenAIMessage[]): {
   system: string;
   parts: TextPartInput[];
@@ -76,8 +52,10 @@ export function messagesToPrompt(messages: OpenAIMessage[]): {
   return { system: systemChunks.join('\n\n'), parts };
 }
 
-/** Pull assistant text + reasoning out of OpenCode message parts. */
-export function extractParts(parts: Part[] | undefined): { content: string; reasoning: string } {
+export function extractParts(parts: Part[] | undefined): {
+  content: string;
+  reasoning: string;
+} {
   if (!Array.isArray(parts)) return { content: '', reasoning: '' };
   let content = '';
   let reasoning = '';
@@ -88,7 +66,6 @@ export function extractParts(parts: Part[] | undefined): { content: string; reas
   return { content, reasoning };
 }
 
-/** Map OpenCode token accounting onto OpenAI's usage shape. */
 export function toUsage(info: AssistantMessage | undefined): OpenAIUsage {
   const tokens = info?.tokens;
   const prompt = tokens?.input ?? 0;
@@ -102,7 +79,6 @@ export function toUsage(info: AssistantMessage | undefined): OpenAIUsage {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
-/** Build a non-streaming `chat.completion` response object. */
 export function buildCompletion(opts: {
   id: string;
   model: string;
@@ -131,7 +107,6 @@ export function buildCompletion(opts: {
   };
 }
 
-/** Build a single streaming `chat.completion.chunk`. */
 export function buildChunk(opts: {
   id: string;
   model: string;
@@ -143,6 +118,8 @@ export function buildChunk(opts: {
     object: 'chat.completion.chunk',
     created: nowSeconds(),
     model: opts.model,
-    choices: [{ index: 0, delta: opts.delta, finish_reason: opts.finishReason }],
+    choices: [
+      { index: 0, delta: opts.delta, finish_reason: opts.finishReason },
+    ],
   };
 }

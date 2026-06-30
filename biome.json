@@ -1,7 +1,7 @@
 {
   "files": {
     "includes": [
-      "src"
+      "src/**"
     ]
   },
   "linter": {
