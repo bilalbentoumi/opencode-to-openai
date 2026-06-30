@@ -28,16 +28,50 @@ OpenAI client ──HTTP──▶ opencode-to-openai ──@opencode-ai/sdk─�
 ```bash
 npm install
 npm run build
-npm start
-```
-
-For development with live reload:
-
-```bash
-npm run dev
 ```
 
 The proxy listens on `http://127.0.0.1:8083` by default.
+
+## CLI
+
+The `oc-openai` command runs the proxy as a **background daemon** and manages its lifecycle.
+After `npm run build`, either install it globally (`npm install -g .`, exposing `oc-openai` on
+your `PATH`) or invoke it through `npm run cli -- <args>`.
+
+```bash
+oc-openai start --port 8083 --host 127.0.0.1   # start in the background
+oc-openai status                               # is it running? (pid, address, health)
+oc-openai logs --follow                         # tail the daemon's log
+oc-openai restart                               # stop then start
+oc-openai stop                                  # graceful shutdown (SIGTERM)
+```
+
+`start` detaches the server, captures its output to a log file, and waits for `/health` to pass
+before returning. State (pid, port, log path) is tracked per port under
+`~/.opencode-to-openai/`, so you can run several instances on different ports — `status`, `stop`,
+`logs`, and `restart` accept `--port N` to target one (defaulting to the configured port).
+
+| Command   | Description                                                       |
+| --------- | ----------------------------------------------------------------- |
+| `start`   | Start the proxy in the background (`-f`/`--foreground` to attach). |
+| `stop`    | Gracefully stop the running proxy.                                |
+| `status`  | Report whether it's running, plus pid, address, and health.       |
+| `restart` | Stop then start.                                                  |
+| `logs`    | Print the log (`--lines N`, `--follow` to stream).                |
+
+`start` accepts the same settings as the config file, as flags: `--port`, `--host`, `--api-key`,
+`--default-model`, `--opencode-url`, `--opencode-port`, `--request-timeout`, and
+`--no-forward-auth`. These take precedence over `config.json`. Run `oc-openai --help` for the
+full list.
+
+### Running in the foreground
+
+For development with live reload, or to run under a process supervisor:
+
+```bash
+npm run dev                  # tsx watch, foreground
+oc-openai start --foreground # built server, foreground (no detach)
+```
 
 ## Configuration
 

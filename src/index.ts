@@ -4,13 +4,20 @@ import { loadConfig } from './config.js';
 
 async function main() {
   const config = loadConfig();
+  if (!config.apiKey) {
+    console.error(
+      '[proxy] no apiKey configured. Set "apiKey" in config.json or the API_KEY env var — ' +
+        'every request must send "Authorization: Bearer <apiKey>".',
+    );
+    process.exit(1);
+  }
   const backend = await startBackend(config);
   const app = createApp(config, backend);
 
   const server = app.listen(config.port, config.host, () => {
     console.log(`[proxy] OpenAI-compatible API listening on http://${config.host}:${config.port}`);
     console.log(`[proxy] backend: ${backend.url}`);
-    console.log(`[proxy] auth: ${config.apiKey ? 'enabled' : 'disabled'}`);
+    console.log(`[proxy] auth: enabled (Bearer apiKey required)`);
   });
 
   let shuttingDown = false;
