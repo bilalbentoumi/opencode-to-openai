@@ -1,0 +1,39 @@
+{
+  "name": "opencode-to-openai",
+  "version": "0.1.0",
+  "description": "An OpenAI-compatible API proxy in front of the OpenCode server. Use OpenCode's models from any OpenAI client.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "opencode-to-openai": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "opencode",
+    "openai",
+    "proxy",
+    "gateway",
+    "llm"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.1.53",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "port": 8083,
+  "host": "127.0.0.1",
+  "apiKey": "",
+  "defaultModel": "opencode/deepseek-v4-flash-free",
+  "requestTimeoutMs": 300000,
+  "opencodeServerUrl": "",
+  "opencodePort": 4097,
+  "forwardAuth": true
+}
