@@ -1,0 +1,27 @@
+{
+  "files": {
+    "includes": [
+      "src"
+    ]
+  },
+  "linter": {
+    "enabled": false
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "indentStyle": "space",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "bracketSameLine": true,
+      "bracketSpacing": true
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

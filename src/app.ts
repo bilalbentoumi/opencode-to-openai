@@ -1,27 +1,27 @@
 import type {
-	AssistantMessage,
-	Part,
-	SessionPromptData,
+  AssistantMessage,
+  Part,
+  SessionPromptData,
 } from "@opencode-ai/sdk";
 import cors from "cors";
 import express, {
-	type Express,
-	type NextFunction,
-	type Request,
-	type Response,
+  type Express,
+  type NextFunction,
+  type Request,
+  type Response,
 } from "express";
 
 import { runWithForwardedAuth } from "./auth-context.js";
 import type { Backend } from "./backend.js";
 import type { Config } from "./config.js";
 import {
-	buildChunk,
-	buildCompletion,
-	extractParts,
-	messagesToPrompt,
-	parseModel,
-	toUsage,
-	type ChatCompletionRequest,
+  buildChunk,
+  buildCompletion,
+  extractParts,
+  messagesToPrompt,
+  parseModel,
+  toUsage,
+  type ChatCompletionRequest,
 } from "./openai.js";
 
 /** Reject with a timeout error if `promise` does not settle in time. */
@@ -114,15 +114,20 @@ export function createApp(config: Config, backend: Backend): Express {
 		);
 	});
 
-	// Bearer-token auth. Always enforced — the server refuses to start without an
-	// apiKey (see index.ts), so config.apiKey is guaranteed non-empty here. The
+	// The client must always send `Authorization: Bearer <key>`. The proxy holds
+	// no key of its own — it only requires a non-empty Bearer token to be present
+	// and forwards it to OpenCode (which is what actually validates it). The
 	// liveness endpoints stay open so health checks don't need a credential.
 	app.use((req: Request, res: Response, next: NextFunction) => {
 		if (req.method === "OPTIONS" || req.path === "/health" || req.path === "/")
 			return next();
-		if (req.headers.authorization === `Bearer ${config.apiKey}`) return next();
+		if (/^Bearer\s+\S/.test(req.headers.authorization ?? "")) return next();
 		res.status(401).json({
-			error: { message: "Unauthorized", type: "invalid_request_error" },
+			error: {
+				message:
+					"Missing API key. Send 'Authorization: Bearer <key>'.",
+				type: "invalid_request_error",
+			},
 		});
 	});
 

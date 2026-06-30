@@ -1,7 +1,7 @@
 import {
-	createOpencodeClient,
-	createOpencodeServer,
-	type OpencodeClient,
+  createOpencodeClient,
+  createOpencodeServer,
+  type OpencodeClient,
 } from "@opencode-ai/sdk";
 import { getForwardedAuth } from "./auth-context.js";
 import type { Config } from "./config.js";

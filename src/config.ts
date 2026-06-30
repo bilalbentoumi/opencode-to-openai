@@ -1,17 +1,8 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, '..');
-
 export interface Config {
   /** Port the OpenAI-compatible proxy listens on. */
   port: number;
   /** Host/interface the proxy binds to. */
   host: string;
-  /** Optional bearer token required on requests. Empty string disables auth. */
-  apiKey: string;
   /** Per-request timeout in milliseconds. */
   requestTimeoutMs: number;
   /** Model used when a request omits one. */
@@ -27,10 +18,9 @@ export interface Config {
   forwardAuth: boolean;
 }
 
-const defaults: Config = {
+export const defaults: Config = {
   port: 8083,
   host: '127.0.0.1',
-  apiKey: '',
   requestTimeoutMs: 300_000,
   defaultModel: 'opencode/deepseek-v4-flash-free',
   opencodeServerUrl: '',
@@ -46,25 +36,16 @@ function parseBool(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-function readFileConfig(): Partial<Config> {
-  const configPath = path.join(projectRoot, 'config.json');
-  if (!fs.existsSync(configPath)) return {};
-  try {
-    const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<Config>;
-    console.log('[config] loaded config.json');
-    return parsed;
-  } catch (err) {
-    console.error(`[config] failed to parse config.json: ${(err as Error).message}`);
-    return {};
-  }
-}
-
+/**
+ * Read config from environment variables. This is the channel the CLI uses to
+ * hand options to the detached server process — CLI flags are mapped onto these
+ * vars before the child is spawned (see cli.ts).
+ */
 function readEnvConfig(): Partial<Config> {
   const env = process.env;
   const out: Partial<Config> = {};
   if (env.PORT) out.port = Number(env.PORT);
   if (env.HOST) out.host = env.HOST;
-  if (env.API_KEY) out.apiKey = env.API_KEY;
   if (env.DEFAULT_MODEL) out.defaultModel = env.DEFAULT_MODEL;
   if (env.REQUEST_TIMEOUT_MS) out.requestTimeoutMs = Number(env.REQUEST_TIMEOUT_MS);
   if (env.OPENCODE_SERVER_URL) out.opencodeServerUrl = env.OPENCODE_SERVER_URL;
@@ -74,7 +55,7 @@ function readEnvConfig(): Partial<Config> {
   return out;
 }
 
-/** Resolve config with precedence: env > config.json > defaults. */
+/** Resolve config with precedence: CLI flags (via env) > defaults. */
 export function loadConfig(): Config {
-  return { ...defaults, ...readFileConfig(), ...readEnvConfig() };
+  return { ...defaults, ...readEnvConfig() };
 }

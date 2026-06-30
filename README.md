@@ -48,8 +48,8 @@ oc-openai stop                                  # graceful shutdown (SIGTERM)
 
 `start` detaches the server, captures its output to a log file, and waits for `/health` to pass
 before returning. State (pid, port, log path) is tracked per port under
-`~/.opencode-to-openai/`, so you can run several instances on different ports — `status`, `stop`,
-`logs`, and `restart` accept `--port N` to target one (defaulting to the configured port).
+`~/.oc-openai/`, so you can run several instances on different ports — `status`, `stop`,
+`logs`, and `restart` accept `--port N` to target one (defaulting to `8083`).
 
 | Command   | Description                                                       |
 | --------- | ----------------------------------------------------------------- |
@@ -59,10 +59,8 @@ before returning. State (pid, port, log path) is tracked per port under
 | `restart` | Stop then start.                                                  |
 | `logs`    | Print the log (`--lines N`, `--follow` to stream).                |
 
-`start` accepts the same settings as the config file, as flags: `--port`, `--host`, `--api-key`,
-`--default-model`, `--opencode-url`, `--opencode-port`, `--request-timeout`, and
-`--no-forward-auth`. These take precedence over `config.json`. Run `oc-openai --help` for the
-full list.
+All configuration is passed as flags to `start`; omit any flag to use its default. Run
+`oc-openai --help` for the full list.
 
 ### Running in the foreground
 
@@ -75,48 +73,38 @@ oc-openai start --foreground # built server, foreground (no detach)
 
 ## Configuration
 
-Settings resolve with precedence **env var → `config.json` → defaults**. Copy the example to
-get started (it is git-ignored):
+There is no config file — everything is a flag on `oc-openai start`, and any flag you omit falls
+back to its default.
+
+| Flag                | Default                           | Description                                                                 |
+| ------------------- | --------------------------------- | --------------------------------------------------------------------------- |
+| `--port`            | `8083`                            | Port the proxy listens on.                                                  |
+| `--host`            | `127.0.0.1`                       | Interface to bind.                                                          |
+| `--opencode-url`    | _(none)_                          | Connect to an existing OpenCode server instead of spawning an embedded one. |
+| `--opencode-port`   | `4097`                            | Port for the embedded OpenCode server.                                      |
+| `--request-timeout` | `300000`                          | Per-request timeout in milliseconds.                                        |
 
 ```bash
-cp config.example.json config.json
+# All defaults — clients must send 'Authorization: Bearer oc-openai'
+oc-openai start
+
+# Custom port and key
+oc-openai start --port 9000
 ```
 
-| `config.json` key   | Env var               | Default            | Description                                                                 |
-| ------------------- | --------------------- | ------------------ | --------------------------------------------------------------------------- |
-| `port`              | `PORT`                | `8083`             | Port the proxy listens on.                                                  |
-| `host`              | `HOST`                | `127.0.0.1`        | Interface to bind.                                                          |
-| `apiKey`            | `API_KEY`             | `""` (no auth)     | If set, requests must send `Authorization: Bearer <key>`.                   |
-| `defaultModel`      | `DEFAULT_MODEL`       | `opencode/deepseek-v4-flash-free` | Model used when a request omits `model`.                                  |
-| `requestTimeoutMs`  | `REQUEST_TIMEOUT_MS`  | `300000`           | Per-request timeout.                                                        |
-| `opencodeServerUrl` | `OPENCODE_SERVER_URL` | `""`               | Connect to an existing OpenCode server instead of spawning an embedded one. |
-| `opencodePort`      | `OPENCODE_PORT`       | `4097`             | Port for the embedded OpenCode server.                                      |
-| `forwardAuth`       | `FORWARD_AUTH`        | `true`             | Forward the caller's `Authorization` header onto calls to the OpenCode server. |
+> **Auth is always on.** Every request to `/v1/*` must send `Authorization: Bearer <api-key>`
+> (only `/health` and `/` are open).
 
 ### Forwarding auth to OpenCode
 
-When `forwardAuth` is on (the default), the proxy attaches the **incoming request's
-`Authorization` header verbatim** to every HTTP call it makes to the OpenCode server. This is
-what you want when pointing the proxy at an OpenCode server protected with
-[`OPENCODE_SERVER_PASSWORD`](https://opencode.ai/docs/server) (HTTP basic auth, username
-`opencode`):
-
-```bash
-# Start a protected OpenCode server
-OPENCODE_SERVER_PASSWORD=secret opencode serve --port 4096
-
-# Run the proxy against it
-OPENCODE_SERVER_URL=http://127.0.0.1:4096 npm start
-
-# Call the proxy with the matching basic-auth credential — it is forwarded through
-curl http://127.0.0.1:8083/v1/models \
-  -H "Authorization: Basic $(printf 'opencode:secret' | base64)"
-```
-
-The header is forwarded as-is (no transformation), so send whatever the OpenCode server
-expects. Set `forwardAuth` to `false` to keep the proxy's own auth fully separate from the
-backend. Note the model catalog is cached briefly and shared across callers, so this is best
-suited to a single shared server credential rather than per-caller provider keys.
+By default the proxy attaches the **incoming request's `Authorization` header verbatim** to every
+HTTP call it makes to the OpenCode server. Since the proxy always requires
+`Authorization: Bearer <api-key>`, that exact Bearer header is what gets forwarded — so this only
+helps when the OpenCode server accepts the same Bearer token. If your OpenCode server uses a
+different scheme (e.g. HTTP basic auth via
+[`OPENCODE_SERVER_PASSWORD`](https://opencode.ai/docs/server)), configure that credential out of
+band on the backend. The model catalog is cached briefly and shared across callers, so this is
+best suited to a single shared server credential rather than per-caller provider keys.
 
 ## Endpoints
 
@@ -131,16 +119,20 @@ Model ids use OpenCode's `provider/model` form, e.g. `opencode/deepseek-v4-flash
 
 ## Examples
 
+Every request must send `Authorization: Bearer <api-key>`. 
+
 List models:
 
 ```bash
-curl http://127.0.0.1:8083/v1/models
+curl http://127.0.0.1:8083/v1/models \
+  -H "Authorization: Bearer oc-openai"
 ```
 
 Non-streaming chat:
 
 ```bash
 curl -X POST http://127.0.0.1:8083/v1/chat/completions \
+  -H "Authorization: Bearer oc-openai" \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "opencode/deepseek-v4-flash-free",
@@ -152,6 +144,7 @@ Streaming chat:
 
 ```bash
 curl -N -X POST http://127.0.0.1:8083/v1/chat/completions \
+  -H "Authorization: Bearer oc-openai" \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "opencode/deepseek-v4-flash-free",
@@ -165,7 +158,7 @@ Using the official `openai` SDK:
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://127.0.0.1:8083/v1", api_key="not-needed")
+client = OpenAI(base_url="http://127.0.0.1:8083/v1", api_key="oc-openai")
 resp = client.chat.completions.create(
     model="opencode/deepseek-v4-flash-free",
     messages=[{"role": "user", "content": "Hello!"}],
